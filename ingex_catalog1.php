@@ -655,7 +655,6 @@ $total_pages = ceil($total_rows / $items_per_page);
 
                         <button type="submit" style="border: none; background-color: #D2B48C; color: white; cursor: pointer; width: 100%;">Войти</button>
 
-                        <button type="submit" style="border: none; background-color: #D2B48C; color: white; cursor: pointer; width: 100%;"><a href="admin_avto.php" style="text-decoration: none; color: white;">Войти как администратор</a></button>
                     </div>
                 </form>
                 <p>Нет аккаунта? <button onclick="openRegisterModal()" style="border: none; background: none; color: #0066cc; cursor: pointer;">Зарегистрироваться</button></p>
