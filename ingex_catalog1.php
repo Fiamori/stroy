@@ -664,26 +664,26 @@ $total_pages = ceil($total_rows / $items_per_page);
 
         <!-- Модальное окно для регистрации -->
         <div id="registerModal" class="modal1">
-            <div class="modal-content1">
-                <span class="close" onclick="closeModal('registerModal')">&times;</span>
-                <h2>Регистрация</h2>
-                <form id="registerForm" action="registration.php" method="POST" enctype="multipart/form-data" onsubmit="return validateRegistrationForm()">
-                    <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; width: 95%;">
-                        <div style="flex: 1; min-width: 300px;">
-                            <input type="text" id="first_name" name="first_name" placeholder="Имя" required>
-                            <input type="text" id="last_name" name="last_name" placeholder="Фамилия" required>
-                            <input type="tel" id="phone_number" name="phone_number" placeholder="Телефон" pattern="\d{10,15}" required>
-                            <input type="email" id="email" name="email" placeholder="Почта" required>
-                            <input type="text" id="address" name="address" placeholder="Адрес" required>
-                            <input type="password" id="password" name="password" placeholder="Пароль" required>
-                            <input type="password" id="confirm_password" name="confirm_password" placeholder="Подтверждение пароля" required>
-                            <input type="file" id="image" name="image" accept="image/*" required>
-                        </div>
+        <div class="modal-content1">
+            <span class="close" onclick="closeModal('registerModal')">&times;</span>
+            <h2>Регистрация</h2>
+            <form id="registerForm" action="registration.php" method="POST" enctype="multipart/form-data" onsubmit="return validateRegistrationForm()">
+                <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; width: 95%;">
+                    <div style="flex: 1; min-width: 300px;">
+                        <input type="text" id="first_name" name="first_name" placeholder="Имя" required>
+                        <input type="text" id="last_name" name="last_name" placeholder="Фамилия" required>
+                        <input type="tel" id="phone_number" name="phone_number" placeholder="Телефон" pattern="\d{10,15}" required>
+                        <input type="email" id="email" name="email" placeholder="Почта" required>
+                        <input type="text" id="address" name="address" placeholder="Адрес" required>
+                        <input type="password" id="password" name="password" placeholder="Пароль" required>
+                        <input type="password" id="confirm_password" name="confirm_password" placeholder="Подтверждение пароля" required>
+                        <input type="file" id="image" name="image" accept="image/*">
                     </div>
-                    <button type="submit" style="background-color: #D2B48C; color: white; cursor: pointer; width: 100%;">Зарегистрироваться</button>
-                </form>
-            </div>
+                </div>
+                <button type="submit" style="background-color: #D2B48C; color: white; cursor: pointer; width: 100%;">Зарегистрироваться</button>
+            </form>
         </div>
+    </div>
 
         <!-- Футер -->
         <?php
