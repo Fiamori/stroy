@@ -2,7 +2,7 @@
 session_start();
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: index.php'); // Если пользователь не авторизован
+    header('Location: index.php');
     exit();
 }
 
@@ -13,14 +13,13 @@ if ($conn->connect_error) {
 }
 
 // Получение данных о магазине
-$query = "SELECT * FROM store_info LIMIT 1"; // Предполагаем, что в таблице всегда только одна запись
+$query = "SELECT * FROM store_info LIMIT 1";
 $result = $conn->query($query);
 $store_info = $result->fetch_assoc();
 
 $user_id = $_SESSION['user_id'];
 
 // Получение данных пользователя
-$user_id = $_SESSION['user_id'];
 $sql = "SELECT first_name, last_name, email, phone_number, address, image_path FROM customers WHERE customer_id = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param('i', $user_id);
@@ -32,13 +31,57 @@ $user = $result->fetch_assoc();
 $query = "SELECT image_url FROM banners";
 $result = $conn->query($query);
 
-// Проверяем, есть ли баннеры
 $banners = [];
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         $banners[] = $row['image_url'];
     }
 }
+
+// Параметры пагинации
+$items_per_page = 9;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$offset = ($page - 1) * $items_per_page;
+
+// Получаем выбранные типы из GET-параметров
+$selected_types = isset($_GET['type']) ? (array)$_GET['type'] : [];
+
+// Базовый запрос
+$sql = "SELECT * FROM products WHERE category_id = 2";
+
+// Добавляем фильтрацию по типам, если они выбраны
+if (!empty($selected_types)) {
+    $conditions = [];
+    foreach ($selected_types as $type) {
+        $safe_type = $conn->real_escape_string($type);
+        $conditions[] = "product_name LIKE '$safe_type%'";
+    }
+    $sql .= " AND (" . implode(" OR ", $conditions) . ")";
+}
+// Добавляем пагинацию
+$sql .= " LIMIT $items_per_page OFFSET $offset";
+
+// Выполняем запрос
+$result = $conn->query($sql);
+
+if (!$result) {
+    die("Ошибка запроса: " . $conn->error);
+}
+
+// Запрос для подсчета общего количества товаров
+$count_sql = "SELECT COUNT(*) AS total FROM products WHERE category_id = 2";
+if (!empty($selected_types)) {
+    $conditions = [];
+    foreach ($selected_types as $type) {
+        $safe_type = $conn->real_escape_string($type);
+        $conditions[] = "product_name LIKE '$safe_type%'";
+    }
+    $count_sql .= " AND (" . implode(" OR ", $conditions) . ")";
+}
+
+$count_result = $conn->query($count_sql);
+$total_rows = $count_result->fetch_assoc()['total'];
+$total_pages = ceil($total_rows / $items_per_page);
 
 $stmt->close();
 $conn->close();
@@ -56,46 +99,45 @@ $conn->close();
     <style>
 /* Общий стиль для шапки */
 .header1 {
-    background-color: rgba(255, 255, 255, 0.8); /* Прозрачный белый фон */
-    backdrop-filter: blur(10px); /* Размытие фона */
-    position: sticky; /* Шапка фиксируется вверху страницы */
+    background-color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    position: sticky;
     top: 0;
     width: 100%;
     z-index: 1000;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1); /* Легкая тень для отделения */
-    padding: 15px 0; /* Меньше отступов сверху и снизу */
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+    padding: 15px 0;
 }
 
 /* Контейнер внутри шапки */
 .header-container1 {
     display: flex;
-    justify-content: space-between; /* Оставляем элементы с равным распределением */
+    justify-content: space-between;
     align-items: center;
-    max-width: 1000px; /* Максимальная ширина шапки */
-    margin: 0 auto; /* Центрируем весь контейнер */
-    padding: 0 50px; /* Отступы слева и справа */
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 50px;
 }
 
 /* Логотип */
 .logo-img {
-    height: 60px; /* Увеличиваем размер логотипа */
+    height: 60px;
 }
 
 .logo {
-  
-    flex-grow: 1; /* Растягиваем блок логотипа для балансировки */
+    flex-grow: 1;
 }
 
 nav {
-    flex: 2; /* Пространство для кнопок навигации */
+    flex: 2;
     display: flex;
-    justify-content: center; /* Центрируем кнопки навигации */
+    justify-content: center;
 }
 
 /* Навигация */
 nav ul {
     display: flex;
-    gap: 15px; /* Расстояние между пунктами меню */
+    gap: 15px;
     list-style: none;
 }
 
@@ -105,61 +147,53 @@ nav ul li button {
     color: #333;
     font-size: 16px;
     cursor: pointer;
-    padding: 10px 15px; /* Добавляем внутренние отступы */
+    padding: 10px 15px;
     transition: color 0.3s;
 }
 
 nav ul li button:hover {
-    color: #A0522D; /* Цвет текста при наведении */
+    color: #A0522D;
 }
 
 .auth-btn-container {
-    flex: 1; /* Пространство для профиля */
+    flex: 1;
     display: flex;
-    justify-content: flex-end; /* Профиль будет справа */
+    justify-content: flex-end;
 }
-/* Уменьшаем расстояние между шапкой и баннером */
+
 main {
-    margin-top: 1px; /* Уменьшаем отступ между шапкой и баннером */
+    margin-top: 1px;
 }
 
-/* Размеры баннера */
 .banner {
-    width: 950px;  /* Пример фиксированной ширины */
-    margin: 0 auto;  /* Центрирование баннера */
+    width: 950px;
+    margin: 0 auto;
 }
 
-
-/* Стиль для кнопок пагинации */
 .pagination a {
-    background-color: #d3d3d3; /* Серый фон для кнопок */
-    color: black; /* Цвет текста */
-    padding: 8px 16px; /* Отступы вокруг текста */
-    text-decoration: none; /* Убираем подчеркивание */
-    margin: 0 5px; /* Отступы между кнопками */
-    border-radius: 4px; /* Закругление углов */
-    cursor: pointer; /* Курсор в виде указателя */
+    background-color: #d3d3d3;
+    color: black;
+    padding: 8px 16px;
+    text-decoration: none;
+    margin: 0 5px;
+    border-radius: 4px;
+    cursor: pointer;
 }
 
-/* Стиль для активной страницы */
 .pagination a.active {
-    background-color: #bdbdbd; /* Цвет активной кнопки */
+    background-color: #bdbdbd;
 }
 
-/* Стиль для кнопок пагинации при наведении */
 .pagination a:hover {
-    background-color: #F5DEB3; /* Бежевый цвет при наведении */
-    color: black; /* Цвет текста при наведении */
+    background-color: #F5DEB3;
+    color: black;
 }
 
-
-/* Контейнер для всплывающего меню */
 .auth-btn-container {
     position: relative;
     display: inline-block;
 }
 
-/* Скрытый контент меню */
 .dropdown-content {
     display: none;
     position: absolute;
@@ -171,7 +205,6 @@ main {
     border-radius: 5px;
 }
 
-/* Стили ссылок в меню */
 .dropdown-content a {
     color: black;
     padding: 8px 16px;
@@ -179,82 +212,159 @@ main {
     display: block;
 }
 
-/* Изменение цвета при наведении */
 .dropdown-content a:hover {
     background-color: #f1f1f1;
 }
 
-/* Показ меню при добавлении класса active */
 .auth-btn-container .dropdown-content.active {
     display: block;
 }
 
-/* Стили модального окна профиля*/
-/* Основное модальное окно */
+.add-to-cart-btn {
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: #D2B48C;
+    color: white;
+    border: none;
+}
+
+.add-to-cart-btn:hover {
+    background-color: #a0865f;
+}
+
+/* Модальные окна */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    width: 600px;
+    max-width: 90%;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.modal-content img {
+    max-width: 300px;
+    max-height: 300px;
+    object-fit: cover;
+}
+
+.close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 30px;
+    color: #aaa;
+    cursor: pointer;
+    z-index: 1001;
+}
+
+/* Модальное окно профиля */
 .modalP {
     display: none;
     position: fixed;
-    z-index: 1000;
-    left: 0;
     top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
-    overflow: auto;
     background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    overflow-y: auto;
 }
 
-/* Контент модального окна */
 .modal-contentP {
     background-color: #fff;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 20px;
+    position: relative;
+    padding: 15px;
     border-radius: 8px;
-    width: 40%;
+    width: 90%;
+    max-width: 340px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     text-align: center;
+    margin: auto;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
-/* Заголовок */
 .profile-title {
-    margin-bottom: 20px;
-    font-size: 24px;
+    margin-bottom: 12px;
+    font-size: 18px;
     color: #333;
 }
 
-/* Контейнер информации */
 .profile-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
 }
 
-/* Фото профиля */
 .profile-photo img {
     border-radius: 50%;
-    width: 120px;
-    height: 120px;
+    width: 80px;
+    height: 80px;
     object-fit: cover;
     border: 2px solid #ccc;
 }
 
-/* Детали профиля */
 .profile-details {
     text-align: left;
     width: 100%;
-    max-width: 300px;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0 5px;
 }
 
 .profile-details p {
-    margin: 8px 0;
-    font-size: 16px;
+    margin: 5px 0;
+    font-size: 13px;
     color: #555;
 }
 
-/* ПЕРЕКРЫТИЕ */
+/* Стили для формы редактирования */
+#editProfileForm {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 5px;
+}
+
+#editProfileForm label {
+    margin-top: 8px;
+    font-size: 13px;
+}
+
+#editProfileForm input {
+    width: calc(100% - 16px);
+    padding: 6px 8px;
+    margin-top: 3px;
+    font-size: 13px;
+}
+
+#editProfileForm button {
+    margin-top: 15px;
+    padding: 8px 15px;
+    font-size: 14px;
+}
+
 .hidden {
     display: none;
 }
@@ -266,31 +376,11 @@ main {
     padding: 10px 20px;
     cursor: pointer;
     font-size: 16px;
+    border-radius: 5px;
 }
 
 .edit-profile-btn:hover {
     background-color: #a0865f;
-}
-
-/* Кнопка "Изменить" */
-.edit-profile-btn {
-    margin-top: 20px;
-    background-color: #007BFF;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    cursor: pointer;
-    border-radius: 5px;
-    font-size: 16px;
-}
-
-.edit-profile-btn:hover {
-    background-color: #0056b3;
-}
-
-/* Скрытая форма редактирования */
-.hidden {
-    display: none;
 }
 
 form label {
@@ -313,7 +403,7 @@ form input {
 form button {
     margin-top: 20px;
     padding: 10px 20px;
-    background-color: #28a745;
+    background-color: #D2B48C;
     color: white;
     border: none;
     border-radius: 5px;
@@ -322,22 +412,18 @@ form button {
 }
 
 form button:hover {
-    background-color: #218838;
+    background-color: #a0865f;
 }
 
-/* Кнопка Каталог */
-
-/* Убедимся, что родитель имеет позицию для контекста */
 .dropdown {
-    position: relative; /* Контекст для позиционирования подменю */
+    position: relative;
 }
 
-/* Подменю */
 .dropdown-menu {
     display: none;
-    position: absolute; /* Абсолютное позиционирование относительно родителя */
-    top: 100%; /* Появляется под кнопкой */
-    left: 0; /* Начинается с левого края кнопки */
+    position: absolute;
+    top: 100%;
+    left: 0;
     background-color: white;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -348,276 +434,275 @@ form button:hover {
     z-index: 10;
 }
 
-/* Стили пунктов меню */
 .dropdown-menu li {
     padding: 5px 15px;
 }
 
-/* Ссылка в меню */
 .dropdown-menu li a {
     text-decoration: none;
     color: black;
     display: block;
 }
 
-/* Изменение фона при наведении */
 .dropdown-menu li a:hover {
     background-color: #f4f4f4;
 }
 
-/* Показываем меню при наведении */
 .dropdown:hover .dropdown-menu {
     display: block;
 }
 
-/* Сброс стандартных отступов */
 ul {
     margin: 0;
     padding: 0;
 }
 
-/* Кнопки в меню */
-nav ul li button {
+.popular-products h2 {
+    margin-top: 40px;
+    margin-bottom: 30px;
+    font-size: 35px;
+    color: #333;
+}
+
+/* Уведомление */
+.notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: none;
+    animation: slideIn 0.5s forwards;
+}
+
+.notification-content {
+    background-color: #ff9800;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.notification-success .notification-content {
+    background-color: #4CAF50;
+}
+
+.notification-warning .notification-content {
+    background-color: #ff9800;
+}
+
+.notification-error .notification-content {
+    background-color: #f44336;
+}
+
+.notification-message {
+    flex-grow: 1;
+}
+
+.notification-close {
     background: none;
     border: none;
-    color: #333;
-    font-size: 16px;
-    cursor: pointer;
-    padding: 10px 15px;
-    transition: color 0.3s;
-}
-
-.popular-products h2 {
-    margin-bottom: 30px; /* Отступ снизу */
-    font-size: 35px; /* Размер шрифта */
-    color: #333; /* Цвет текста */
-}
-
-/* Стиль для кнопки "Добавить в корзину" */
-.add-to-cart-btn {
-    padding: 10px 20px;
-    border-radius: 5px;
-    font-size: 16px;
-    cursor: pointer;
-    background-color: #D2B48C;
     color: white;
-    border: none;
-}
-
-.add-to-cart-btn:hover {
-    background-color: #a0865f;
-}
-
-/* Стиль для модального окна (по умолчанию скрыто) */
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.5);
-}
-
-/* Стиль для контента модального окна */
-.modal-content {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 20px;
-    width: 600px; /* Ширина окна */
-    box-sizing: border-box;
-    display: flex; /* Используем flexbox для размещения элементов */
-    align-items: center; /* Центрируем элементы по вертикали */
-    gap: 20px; /* Отступ между картинкой и текстом */
-}
-
-/* Стиль для картинки */
-.modal-content img {
-    max-width: 300px; /* Ограничиваем ширину картинки */
-    max-height: 300px; /* Ограничиваем высоту картинки */
-    object-fit: cover; /* Сохраняем пропорции */
-}
-
-/* Стиль для текста */
-.modal-content .text {
-    flex: 1; /* Текст занимает оставшееся пространство */
-    text-align: left; /* Выравниваем текст по левому краю */
-}
-
-/* Стиль для крестика закрытия */
-.close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 30px;
-    color: #aaa;
+    font-size: 20px;
     cursor: pointer;
+    margin-left: 15px;
 }
 
-.close:hover {
-    color: #000;
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.notification.hide {
+    animation: slideOut 0.5s forwards;
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+
+/* Стили для количества товара */
+.stock-info {
+    margin: 10px 0;
+    font-weight: bold;
+}
+
+.stock-high {
+    color: #4CAF50;
+}
+
+.stock-medium {
+    color: #FFC107;
+}
+
+.stock-low {
+    color: #f44336;
+}
+
+.quantity-input {
+    width: 60px;
+    padding: 5px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.product {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 10px;
+}
+
+.product img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-bottom: 10px;
 }
     </style>
 </head>
 <body>
 <div class="wrapper">
 <header class="header1">
-        <div class="header-container1">
+    <div class="header-container1">
         <div class="logo">
-    <button onclick="location.href='user.php'" style="
-        background: none;
-        border: none;
-        color: black;
-        font: inherit;
-        cursor: pointer;
-        padding: 0;
-        font-weight: bold; /* Жирный шрифт */
-        font-size: 18px; /* Увеличенный размер шрифта */
-    ">
-        ИП "Жамкоцян"
-    </button>
-</div>
-            <nav>
-                <ul>
+            <button onclick="location.href='user.php'" style="
+                background: none;
+                border: none;
+                color: black;
+                font: inherit;
+                cursor: pointer;
+                padding: 0;
+                font-weight: bold;
+                font-size: 18px;">
+                ИП "Жамкоцян"
+            </button>
+        </div>
+        <nav>
+            <ul>
                 <li><button href="#"></button></li>
                 <li><button href="#"></button></li>
                 <li class="dropdown">
-    <button class="dropdown-btn">Каталог</button>
-    <ul class="dropdown-menu">
-        <li><a href="user_catalog1.php">Полы</a></li>
-        <li><a href="user_catalog2.php">Обои</a></li>
-    </ul>
-</li>
-                    <li><button onclick="scrollToFooter()">Контакты</button></li>
-                    <li><button onclick="location.href='cart.php'">Корзина</button></li>
-                    <li>
-    <div class="auth-btn-container">
-        <button id="userMenuButton">
-            <?php echo htmlspecialchars($user['first_name']); ?>
-        </button>
-        <!-- Всплывающее меню -->
-        <div id="userDropdown" class="dropdown-content">
-        <a href="javascript:void(0)" onclick="openProfileModal()">Профиль</a>
-            <a href="logout.php">Выход</a>
-        </div>
+                    <button class="dropdown-btn">Каталог</button>
+                    <ul class="dropdown-menu">
+                        <li><a href="user_catalog1.php">Полы</a></li>
+                        <li><a href="user_catalog2.php">Обои</a></li>
+                    </ul>
+                </li>
+                <li><button onclick="scrollToFooter()">Контакты</button></li>
+                <li><button onclick="location.href='cart.php'">Корзина</button></li>
+                <li>
+                    <div class="auth-btn-container">
+                        <button id="userMenuButton">
+                            <?php echo htmlspecialchars($user['first_name']); ?>
+                        </button>
+                        <div id="userDropdown" class="dropdown-content">
+                            <a href="javascript:void(0)" onclick="openProfileModal()">Профиль</a>
+                            <a href="logout.php">Выход</a>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </nav>
     </div>
-</li>
-                </ul>
-            </nav>
+</header>
+
+<main>
+    <section class="popular-products">
+        <h2>Обои</h2>
+        <div class="product-list">
+            <?php
+            if ($result->num_rows > 0) {
+                while($row = $result->fetch_assoc()) {
+                    echo "
+                        <div class='product'>
+                            <img src='{$row['image_path']}' alt='{$row['product_name']}' 
+                                 data-name='{$row['product_name']}' 
+                                 data-description='{$row['description']}'
+                                 data-price='{$row['price']}'
+                                 data-image='{$row['image_path']}'
+                                 data-id='{$row['product_id']}'
+                                 data-stock='{$row['stock_quantity']}'
+                                 onclick='openModal(this)'>
+                            <h3>{$row['product_name']}</h3>
+                            <p>Цена: {$row['price']} руб./м²</p>
+                        </div>
+                    ";
+                }
+            } else {
+                echo "<p>Товары не найдены.</p>";
+            }
+            ?>
         </div>
-    </header>
-        <main>
-        <section class="popular-products">
-                <h2>Обои</h2>
-                <div class="product-list">
-                    <?php
-                        // Количество товаров на странице
-                        $items_per_page = 9;
 
-                        // Получаем текущую страницу из параметров URL (по умолчанию первая страница)
-                        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-
-                        // Определяем смещение для запроса
-                        $offset = ($page - 1) * $items_per_page;
-
-                        // Соединение с базой данных
-                        $conn = new mysqli('127.0.0.1', 'root', 'root', 'store_coverings');
-                        if ($conn->connect_error) {
-                            die("Connection failed: " . $conn->connect_error);
-                        }
-
-                        // Запрос для получения товаров с учетом пагинации
-                        $sql = "SELECT * FROM products WHERE category_id = 2 LIMIT $items_per_page OFFSET $offset";
-                        $result = $conn->query($sql);
-
-                        // Выводим товары
-                        if ($result->num_rows > 0) {
-                            while($row = $result->fetch_assoc()) {
-                                echo "
-                                <div class='product' style='border: 1px solid #ddd; border-radius: 10px; padding: 10px; margin: 10px;'>
-                                    <img src='{$row['image_path']}' alt='{$row['product_name']}' 
-                                         data-name='{$row['product_name']}' 
-                                         data-description='{$row['description']}'
-                                         data-price='{$row['price']}'
-                                         data-image='{$row['image_path']}'
-                                         data-id='{$row['product_id']}' 
-                                         onclick='openModal(this)'>
-                                    <h3>{$row['product_name']}</h3>
-                                    <p>Цена: {$row['price']} руб./м²</p>
-                                </div>
-                            ";
-                            }
-                        } else {
-                            echo "<p>Товары не найдены.</p>";
-                        }
-
-                        // Запрос для подсчета общего количества товаров
-                        $count_sql = "SELECT COUNT(*) AS total FROM products WHERE category_id = 2";
-                        $count_result = $conn->query($count_sql);
-                        $total_rows = $count_result->fetch_assoc()['total'];
-                        $total_pages = ceil($total_rows / $items_per_page);
-
-                        // Закрытие соединения
-                        $conn->close();
-                    ?>
-                </div>
-
-                <!-- Пагинация -->
-                <div class="pagination">
-                    <?php
-                    // Кнопка "Назад"
-                    if ($page > 1) {
-                        echo "<a href='user_catalog2.php?page=" . ($page - 1) . "'>&laquo; Назад</a>";
+        <div class="pagination">
+            <?php
+            // Кнопка "Назад"
+            if ($page > 1) {
+                $prev_url = 'user_catalog2.php?page=' . ($page - 1);
+                if (!empty($selected_types)) {
+                    foreach ($selected_types as $type) {
+                        $prev_url .= '&type[]=' . urlencode($type);
                     }
+                }
+                echo "<a href='$prev_url'>&laquo; Назад</a>";
+            }
 
-                    // Показать номера страниц
-                    for ($i = 1; $i <= $total_pages; $i++) {
-                        if ($i == $page) {
-                            echo "<a href='user_catalog2.php?page=$i' class='active'>$i</a>";
-                        } else {
-                            echo "<a href='user_catalog2.php?page=$i'>$i</a>";
-                        }
+            // Показать номера страниц
+            for ($i = 1; $i <= $total_pages; $i++) {
+                $page_url = 'user_catalog2.php?page=' . $i;
+                if (!empty($selected_types)) {
+                    foreach ($selected_types as $type) {
+                        $page_url .= '&type[]=' . urlencode($type);
                     }
+                }
+                
+                if ($i == $page) {
+                    echo "<a href='$page_url' class='active'>$i</a>";
+                } else {
+                    echo "<a href='$page_url'>$i</a>";
+                }
+            }
 
-                    // Кнопка "Далее"
-                    if ($page < $total_pages) {
-                        echo "<a href='user_catalog2.php?page=" . ($page + 1) . "'>Далее &raquo;</a>";
+            // Кнопка "Далее"
+            if ($page < $total_pages) {
+                $next_url = 'user_catalog2.php?page=' . ($page + 1);
+                if (!empty($selected_types)) {
+                    foreach ($selected_types as $type) {
+                        $next_url .= '&type[]=' . urlencode($type);
                     }
-                    ?>
-                </div>
-            </section>
-        </main>
-    </div>
+                }
+                echo "<a href='$next_url'>Далее &raquo;</a>";
+            }
+            ?>
+        </div>
+    </section>
+</main>
 
-<!-- Модальное окно -->
-<div id="productModal" class="modal" onclick="handleModalClick(event)" style="background-color: rgba(65, 63, 58, 0.7);">
+<!-- Модальное окно товара -->
+<div id="productModal" class="modal">
     <div class="modal-content" style="background-color: rgba(255, 255, 255, 0.9);">
+        <span class="close" onclick="closeProductModal()">&times;</span>
         <div class="modal-image" style="width: 300px; height: 300px; overflow: hidden;">
             <img id="modalImg" src="" alt="Изображение товара" style="width: 100%; height: 100%; object-fit: cover; object-position: center;">
         </div>
         <div class="modal-details">
-            <h3 id="modalName"></h3> <!-- Название товара -->
-            <p id="modalDescription"></p> <!-- Описание товара -->
-            <p id="modalPrice"></p> <!-- Цена товара -->
-
-            <!-- Форма для добавления в корзину -->
-            <form method="POST" action="add_to_cart.php">
-                <!-- Скрытое поле для передачи ID товара -->
+            <h3 id="modalName"></h3>
+            <p id="modalDescription"></p>
+            <p id="modalPrice"></p>
+            <p id="modalStock" class="stock-info"></p>
+            <form id="addToCartForm" method="POST" onsubmit="addToCart(event)">
                 <input type="hidden" id="product_id" name="product_id" value="">
-                <!-- Поле для ввода количества -->
-                <input type="number" id="quantity" name="quantity" value="1" min="1" required>
-                <button type="submit" class="add-to-cart-btn" >Добавить в корзину</button>
-               
+                <input type="number" id="quantity" name="quantity" value="1" min="1" class="quantity-input" required>
+                <button type="submit" class="add-to-cart-btn">Добавить в корзину</button>
             </form>
-
-            <p id="cartMessage" style="color: green;"></p> <!-- Сообщение пользователю -->
+            <p id="cartMessage" style="color: green;"></p>
         </div>
     </div>
-    <span class="close" onclick="closeModal()">&times;</span>
 </div>
 
 <!-- Модальное окно профиля -->
@@ -661,143 +746,191 @@ nav ul li button {
     </div>
 </div>
 
-<script>
-    // Функции для работы с модальными окнами
-    function openModal(element) {
-        var productId = element.getAttribute('data-id');
-        var productName = element.getAttribute('data-name');
-        var productDescription = element.getAttribute('data-description');
-        var productPrice = element.getAttribute('data-price');
-        var productImage = element.getAttribute('data-image');
-
-        document.getElementById('modalName').innerText = productName;
-        document.getElementById('modalDescription').innerText = productDescription;
-        document.getElementById('modalPrice').innerText = "Цена: " + productPrice + " руб.";
-        document.getElementById('modalImg').src = productImage;
-        document.getElementById('product_id').value = productId;
-
-        document.getElementById('productModal').style.display = 'block';
-    }
-
-    function closeModal() {
-        document.getElementById('productModal').style.display = 'none';
-    }
-
-    function openProfileModal() {
-        document.getElementById('profileModal').style.display = 'block';
-    }
-
-    function closeProfileModal() {
-        document.getElementById('profileModal').style.display = 'none';
-    }
-
-    function closeAuthModal() {
-        document.getElementById('authModal').style.display = 'none';
-    }
-
-    function closeRegisterModal() {
-        document.getElementById('registerModal').style.display = 'none';
-    }
-
-    // Закрытие модальных окон при клике вне их области
-    window.addEventListener('click', function(event) {
-        if (event.target === document.getElementById('productModal')) {
-            closeModal();
-        }
-        if (event.target === document.getElementById('profileModal')) {
-            closeProfileModal();
-        }
-        if (event.target === document.getElementById('authModal')) {
-            closeAuthModal();
-        }
-        if (event.target === document.getElementById('registerModal')) {
-            closeRegisterModal();
-        }
-    });
-
-    // Закрытие модальных окон по клавише Esc
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            closeModal();
-            closeProfileModal();
-            closeAuthModal();
-            closeRegisterModal();
-        }
-    });
-
-    // Остальные функции
-    function scrollToFooter() {
-        const footer = document.getElementById("contacts");
-        footer.scrollIntoView({ behavior: "smooth" });
-    }
-
-    function openAuthModal() {
-        document.getElementById('authModal').style.display = 'flex';
-    }
-
-    function openRegisterModal() {
-        document.getElementById('authModal').style.display = 'none';
-        document.getElementById('registerModal').style.display = 'flex';
-    }
-
-    function validateRegistrationForm() {
-        const password = document.getElementById('password').value;
-        const confirmPassword = document.getElementById('password').value;
-        const phoneNumber = document.getElementById('phone_number').value;
-
-        if (password !== confirmPassword) {
-            alert('Пароли не совпадают.');
-            return false;
-        }
-
-        if (!/^[0-9]+$/.test(phoneNumber)) {
-            alert('Номер телефона должен содержать только цифры.');
-            return false;
-        }
-
-        alert('Регистрация прошла успешно!');
-        document.getElementById('successMessage').style.display = 'block';
-        return true;
-    }
-
-    // Работа с меню пользователя
-    document.addEventListener('DOMContentLoaded', function () {
-        const userMenuButton = document.getElementById('userMenuButton');
-        const userDropdown = document.getElementById('userDropdown');
-
-        userMenuButton.addEventListener('click', function () {
-            userDropdown.classList.toggle('active');
-        });
-
-        document.addEventListener('click', function (event) {
-            if (!userMenuButton.contains(event.target) && !userDropdown.contains(event.target)) {
-                userDropdown.classList.remove('active');
-            }
-        });
-    });
-
-    // Редактирование профиля
-    const editProfileBtn = document.getElementById('editProfileBtn');
-    const editProfileForm = document.getElementById('editProfileForm');
-    const profileDetails = document.querySelector('.profile-details');
-
-    editProfileBtn.addEventListener('click', () => {
-        if (editProfileForm.classList.contains('hidden')) {
-            editProfileForm.classList.remove('hidden');
-            profileDetails.style.display = 'none';
-            editProfileBtn.textContent = 'Отмена';
-        } else {
-            editProfileForm.classList.add('hidden');
-            profileDetails.style.display = 'block';
-            editProfileBtn.textContent = 'Изменить';
-        }
-    });
-</script>
+<!-- Уведомление -->
+<div id="notification" class="notification">
+    <div class="notification-content">
+        <span class="notification-message"></span>
+        <button class="notification-close" onclick="hideNotification()">&times;</button>
+    </div>
+</div>
 
 <?php
-// Подключаем подвал
 include('includes/footer.php');
 ?>
 
+<script>
+// Управление модальным окном товара
+function openModal(element) {
+    document.getElementById('modalImg').src = element.getAttribute('data-image');
+    document.getElementById('modalName').innerText = element.getAttribute('data-name');
+    document.getElementById('modalDescription').innerText = element.getAttribute('data-description');
+    document.getElementById('modalPrice').innerText = "Цена: " + element.getAttribute('data-price') + " руб.";
+    document.getElementById('product_id').value = element.getAttribute('data-id');
+    
+    // Отображение количества товара на складе
+    const stock = parseInt(element.getAttribute('data-stock'));
+    const stockElement = document.getElementById('modalStock');
+    
+    if (stock > 50) {
+        stockElement.className = 'stock-info stock-high';
+        stockElement.textContent = 'В наличии: ' + stock + ' шт.';
+    } else if (stock > 10) {
+        stockElement.className = 'stock-info stock-medium';
+        stockElement.textContent = 'В наличии: ' + stock + ' шт.';
+    } else if (stock > 0) {
+        stockElement.className = 'stock-info stock-low';
+        stockElement.textContent = 'Осталось мало: ' + stock + ' шт.';
+    } else {
+        stockElement.className = 'stock-info stock-low';
+        stockElement.textContent = 'Нет в наличии';
+    }
+    
+    document.getElementById('productModal').style.display = 'flex';
+}
+
+function closeProductModal() {
+    document.getElementById('productModal').style.display = 'none';
+}
+
+// Управление модальным окном профиля
+function openProfileModal() {
+    document.getElementById('profileModal').style.display = 'flex';
+}
+
+function closeProfileModal() {
+    document.getElementById('profileModal').style.display = 'none';
+}
+
+// Редактирование профиля
+document.getElementById('editProfileBtn').addEventListener('click', () => {
+    const form = document.getElementById('editProfileForm');
+    const details = document.querySelector('.profile-details');
+    
+    if (form.classList.contains('hidden')) {
+        form.classList.remove('hidden');
+        details.style.display = 'none';
+        document.getElementById('editProfileBtn').textContent = 'Отмена';
+    } else {
+        form.classList.add('hidden');
+        details.style.display = 'block';
+        document.getElementById('editProfileBtn').textContent = 'Изменить';
+    }
+});
+
+// Закрытие модальных окон при клике вне их области
+window.addEventListener('click', function(event) {
+    if (event.target === document.getElementById('productModal')) {
+        closeProductModal();
+    }
+    if (event.target === document.getElementById('profileModal')) {
+        closeProfileModal();
+    }
+});
+
+// Закрытие модальных окон по клавише Esc
+window.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeProductModal();
+        closeProfileModal();
+    }
+});
+
+// Управление выпадающим меню пользователя
+document.addEventListener('DOMContentLoaded', function() {
+    const userMenuButton = document.getElementById('userMenuButton');
+    const userDropdown = document.getElementById('userDropdown');
+
+    userMenuButton.addEventListener('click', function() {
+        userDropdown.classList.toggle('active');
+    });
+
+    document.addEventListener('click', function(event) {
+        if (!userMenuButton.contains(event.target) && !userDropdown.contains(event.target)) {
+            userDropdown.classList.remove('active');
+        }
+    });
+});
+
+// Управление уведомлениями
+function showNotification(message, type = 'warning') {
+    const notification = document.getElementById('notification');
+    const messageElement = notification.querySelector('.notification-message');
+    
+    // Устанавливаем класс в зависимости от типа уведомления
+    notification.className = 'notification';
+    if (type === 'success') {
+        notification.classList.add('notification-success');
+    } else if (type === 'error') {
+        notification.classList.add('notification-error');
+    } else {
+        notification.classList.add('notification-warning');
+    }
+    
+    messageElement.textContent = message;
+    notification.classList.remove('hide');
+    notification.style.display = 'flex';
+    
+    setTimeout(() => {
+        hideNotification();
+    }, 5000);
+}
+
+function hideNotification() {
+    const notification = document.getElementById('notification');
+    notification.classList.add('hide');
+    
+    setTimeout(() => {
+        notification.style.display = 'none';
+        notification.classList.remove('hide');
+    }, 500);
+}
+
+// Прокрутка к футеру
+function scrollToFooter() {
+    document.getElementById('contacts').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Функция добавления товара в корзину
+function addToCart(event) {
+    event.preventDefault();
+    
+    const productId = document.getElementById('product_id').value;
+    const quantity = parseInt(document.getElementById('quantity').value);
+    const stock = parseInt(document.getElementById('modalStock').textContent.match(/\d+/)?.[0] || 0);
+    
+    // Проверка наличия товара
+    if (stock <= 0) {
+        showNotification('Этот товар закончился на складе', 'error');
+        return;
+    }
+    
+    // Проверка количества
+    if (quantity > stock) {
+        showNotification('Недостаточно товара на складе. Доступно: ' + stock + ' шт.', 'error');
+        return;
+    }
+    
+    // Отправка данных на сервер
+    const formData = new FormData(document.getElementById('addToCartForm'));
+    
+    fetch('add_to_cart.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Товар добавлен в корзину', 'success');
+            closeProductModal();
+        } else {
+            showNotification(data.message || 'Ошибка при добавлении товара', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Ошибка при добавлении товара', 'error');
+        console.error('Error:', error);
+    });
+}
+</script>
 </body>
 </html>
