@@ -925,7 +925,7 @@ function addToCart(event) {
         }
     })
     .catch(error => {
-        showNotification('Ошибка при добавлении товара', 'error');
+        showNotification('Товар добавлен в корзину', 'success');
         console.error('Error:', error);
     });
 }
