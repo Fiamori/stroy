@@ -123,7 +123,7 @@ include('includes/header.php');
 
                     <button type="submit" style="border: none; background-color: #D2B48C; color: white; cursor: pointer; width: 100%;">Войти</button>
 
-                    <button type="submit" style="border: none; background-color: #D2B48C; color: white; cursor: pointer; width: 100%;"><a href="admin_avto.php" style="text-decoration: none; color: white;">Войти как администратор</a></button>
+            
                 </div>
             </form>
             <p>Нет аккаунта? <button onclick="openRegisterModal()" style="border: none; background: none; color: #0066cc; cursor: pointer;">Зарегистрироваться</button></p>
@@ -217,26 +217,26 @@ include('includes/header.php');
 
     // Функция добавления товара в корзину
     function addToCart() {
-        const productName = document.getElementById('modalName').innerText;
-        const productPrice = document.getElementById('modalPrice').innerText.replace('Цена: ', '').replace(' руб.', '');
-        
-        let cart = JSON.parse(localStorage.getItem('cart')) || [];
-        
-        const existingProductIndex = cart.findIndex(product => product.name === productName);
-        if (existingProductIndex !== -1) {
-            cart[existingProductIndex].quantity += 1;
-        } else {
-            cart.push({
-                name: productName,
-                price: productPrice,
-                quantity: 1
-            });
+            const productName = document.getElementById('modalName').innerText;
+            const productPrice = document.getElementById('modalPrice').innerText.replace('Цена: ', '').replace(' руб.', '');
+
+            let cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+            const existingProductIndex = cart.findIndex(product => product.name === productName);
+            if (existingProductIndex !== -1) {
+                cart[existingProductIndex].quantity += 1;
+            } else {
+                cart.push({
+                    name: productName,
+                    price: productPrice,
+                    quantity: 1
+                });
+            }
+
+            localStorage.setItem('cart', JSON.stringify(cart));
+            showNotification('Вы не авторизованы! Пожалуйста, войдите в систему.', 'warning');
+            closeProductModal();
         }
-        
-        localStorage.setItem('cart', JSON.stringify(cart));
-        showNotification('Товар добавлен в корзину', 'success');
-        closeProductModal();
-    }
 
     // Функции для работы с модальными окнами авторизации/регистрации
     function openAuthModal() {

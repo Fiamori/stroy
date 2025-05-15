@@ -256,6 +256,79 @@ nav li {
 .dropdown:hover .dropdown-menu {
     display: block;
 }
+
+        /* Стили для уведомлений */
+        .notification-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .notification {
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.5s forwards;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 300px;
+        }
+
+        .notification.success {
+            background-color: #4CAF50;
+        }
+
+        .notification.error {
+            background-color: #f44336;
+        }
+
+        .notification.warning {
+            background-color: #ff9800;
+        }
+
+        .notification.info {
+            background-color: #2196F3;
+        }
+
+        .notification-close {
+            cursor: pointer;
+            margin-left: 15px;
+            font-weight: bold;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        .notification.hide {
+            animation: slideOut 0.5s forwards;
+        }
     </style>
 </head>
 <body>
@@ -411,8 +484,7 @@ nav li {
 
                 <button type="submit" style="border: none; background-color: #D2B48C; color: white; cursor: pointer; width: 100%;">Войти</button>
 
-                <button type="submit" style="border: none; background-color: #D2B48C; color: white; cursor: pointer; width: 100%;"><a href="admin_avto.php" style="text-decoration: none; color: white;">Войти как администратор</a></button>
-            </div>
+                </div>
         </form>
         <p>Нет аккаунта? <button onclick="openRegisterModal()" style="border: none; background: none; color: #0066cc; cursor: pointer;">Зарегистрироваться</button></p>
     </div>
@@ -420,27 +492,29 @@ nav li {
 
 <!-- Модальное окно для регистрации -->
 <div id="registerModal" class="modal1">
-    <div class="modal-content1">
-        <span class="close" onclick="closeModal('registerModal')">&times;</span>
-        <h2>Регистрация</h2>
-        <form id="registerForm" action="registration.php" method="POST" enctype="multipart/form-data" onsubmit="return validateRegistrationForm()">
-            <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; width: 95%;">
-                <div style="flex: 1; min-width: 300px;">
-                    <input type="text" id="first_name" name="first_name" placeholder="Имя" required>
-                    <input type="text" id="last_name" name="last_name" placeholder="Фамилия" required>
-                    <input type="tel" id="phone_number" name="phone_number" placeholder="Телефон" pattern="\d{10,15}" required>
-                    <input type="email" id="email" name="email" placeholder="Почта" required>
-                    <input type="text" id="address" name="address" placeholder="Адрес" required>
-                    <input type="password" id="password" name="password" placeholder="Пароль" required>
-                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Подтверждение пароля" required>
-                    <input type="file" id="image" name="image" accept="image/*" required>
+        <div class="modal-content1">
+            <span class="close" onclick="closeModal('registerModal')">&times;</span>
+            <h2>Регистрация</h2>
+            <form id="registerForm" action="registration.php" method="POST" enctype="multipart/form-data" onsubmit="return validateRegistrationForm()">
+                <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; width: 95%;">
+                    <div style="flex: 1; min-width: 300px;">
+                        <input type="text" id="first_name" name="first_name" placeholder="Имя" required>
+                        <input type="text" id="last_name" name="last_name" placeholder="Фамилия" required>
+                        <input type="tel" id="phone_number" name="phone_number" placeholder="Телефон" pattern="\d{10,15}" required>
+                        <input type="email" id="email" name="email" placeholder="Почта" required>
+                        <input type="text" id="address" name="address" placeholder="Адрес" required>
+                        <input type="password" id="password" name="password" placeholder="Пароль" required>
+                        <input type="password" id="confirm_password" name="confirm_password" placeholder="Подтверждение пароля" required>
+                        <input type="file" id="image" name="image" accept="image/*">
+                    </div>
                 </div>
-            </div>
-            <button type="submit" style="background-color: #D2B48C; color: white; cursor: pointer; width: 100%;">Зарегистрироваться</button>
-        </form>
-        <p id="successMessage" style="display: none; color: green;">Регистрация прошла успешно!</p>
+                <button type="submit" style="background-color: #D2B48C; color: white; cursor: pointer; width: 100%;">Зарегистрироваться</button>
+            </form>
+        </div>
     </div>
-</div>
+
+<!-- Контейнер для уведомлений -->
+<div class="notification-container"></div>
 
 <?php
 // Подключаем подвал
@@ -448,6 +522,29 @@ include('includes/footer.php');
 ?>
 
 <script>
+    // Функция для отображения уведомлений
+    function showNotification(message, type = 'info', duration = 5000) {
+        const container = document.querySelector('.notification-container');
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <span>${message}</span>
+            <span class="notification-close" onclick="this.parentElement.remove()">&times;</span>
+        `;
+        
+        container.appendChild(notification);
+        
+        // Автоматическое закрытие через указанное время
+        if (duration > 0) {
+            setTimeout(() => {
+                notification.classList.add('hide');
+                setTimeout(() => notification.remove(), 500);
+            }, duration);
+        }
+        
+        return notification;
+    }
+
     // Функция для открытия модального окна товара
     function openModal(element) {
         document.getElementById('modalImg').src = element.getAttribute('data-image');
@@ -483,9 +580,9 @@ include('includes/footer.php');
     function addToCart() {
         const productName = document.getElementById('modalName').innerText;
         const productPrice = document.getElementById('modalPrice').innerText.replace('Цена: ', '').replace(' руб.', '');
-        
+
         let cart = JSON.parse(localStorage.getItem('cart')) || [];
-        
+
         const existingProductIndex = cart.findIndex(product => product.name === productName);
         if (existingProductIndex !== -1) {
             cart[existingProductIndex].quantity += 1;
@@ -496,9 +593,9 @@ include('includes/footer.php');
                 quantity: 1
             });
         }
-        
+
         localStorage.setItem('cart', JSON.stringify(cart));
-        alert('Пожалуйста, авторизируйтесь!');
+        showNotification('Вы не авторизованы! Пожалуйста, войдите в систему.', 'warning');
         closeProductModal();
     }
 
@@ -522,20 +619,21 @@ include('includes/footer.php');
             .then(response => response.json())
             .then(data => {
                 if (data.status) {
-                    window.location.href = data.redirect;
+                    showNotification('Авторизация успешна', 'success');
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1500);
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
             })
             .catch(error => console.error('Ошибка:', error));
         });
 
         // Обработчик для формы регистрации
-        document.getElementById('registerForm')?.addEventListener('submit', function(event) {
+        document.getElementById('registerForm').onsubmit = function(event) {
             event.preventDefault();
-            
             const formData = new FormData(this);
-            
             fetch('registration.php', {
                 method: 'POST',
                 body: formData
@@ -543,13 +641,20 @@ include('includes/footer.php');
             .then(response => response.json())
             .then(data => {
                 if (data.status) {
-                    alert('Регистрация успешна');
+                    showNotification('Регистрация успешна! Теперь вы можете войти.', 'success');
+                    setTimeout(() => {
+                        document.getElementById('registerModal').style.display = 'none';
+                        document.getElementById('authModal').style.display = 'flex';
+                    }, 1500);
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
             })
-            .catch(error => console.error('Ошибка:', error));
-        });
+            .catch(error => {
+                showNotification('Ошибка при регистрации', 'error');
+                console.error('Ошибка:', error);
+            });
+        };
     });
 
     // Функции для работы с модальными окнами авторизации/регистрации
@@ -573,12 +678,12 @@ include('includes/footer.php');
         const phoneNumber = document.getElementById('phone_number').value;
 
         if (password !== confirmPassword) {
-            alert('Пароли не совпадают.');
+            showNotification('Пароли не совпадают', 'error');
             return false;
         }
 
         if (!/^[0-9]+$/.test(phoneNumber)) {
-            alert('Номер телефона должен содержать только цифры.');
+            showNotification('Номер телефона должен содержать только цифры', 'error');
             return false;
         }
 
@@ -591,8 +696,7 @@ include('includes/footer.php');
         if (isAuthorized) {
             location.href = 'cart.php';
         } else {
-            alert('Вы не авторизованы!');
-            openAuthModal();
+            showNotification('Для просмотра корзины необходимо авторизоваться', 'warning');
         }
     }
 
@@ -602,6 +706,11 @@ include('includes/footer.php');
             closeModal(event.target.id);
         }
     });
+
+    <?php if (isset($_SESSION['notification'])): ?>
+        showNotification('<?php echo $_SESSION['notification']['message']; ?>', '<?php echo $_SESSION['notification']['type']; ?>');
+        <?php unset($_SESSION['notification']); ?>
+    <?php endif; ?>
 </script>
 </body>
 </html>

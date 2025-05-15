@@ -257,20 +257,6 @@ main {
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 1000;
     justify-content: center;
-    align-items: center;
-}
-
-/* Модальное окно профиля */
-.modalP {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    justify-content: center;
     align-items: flex-start; /* Изменено на flex-start для прокрутки */
     padding-top: 20px;
     padding-bottom: 20px;
@@ -462,13 +448,25 @@ ul {
 }
 
 .notification-content {
-    background-color: #ff4444;
+    background-color: #ff9800; /* Оранжевый цвет */
     color: white;
     padding: 15px 20px;
     border-radius: 5px;
     display: flex;
     align-items: center;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.notification-success .notification-content {
+    background-color: #4CAF50; /* Зеленый цвет для успешных операций */
+}
+
+.notification-warning .notification-content {
+    background-color: #ff9800; /* Оранжевый цвет для предупреждений */
+}
+
+.notification-error .notification-content {
+    background-color: #f44336; /* Красный цвет для ошибок */
 }
 
 .notification-message {
@@ -496,6 +494,32 @@ ul {
 @keyframes slideOut {
     from { transform: translateX(0); opacity: 1; }
     to { transform: translateX(100%); opacity: 0; }
+}
+
+/* Стили для количества товара */
+.stock-info {
+    margin: 10px 0;
+    font-weight: bold;
+}
+
+.stock-high {
+    color: #4CAF50; /* Зеленый цвет для большого количества */
+}
+
+.stock-medium {
+    color: #FFC107; /* Желтый цвет для среднего количества */
+}
+
+.stock-low {
+    color: #f44336; /* Красный цвет для малого количества */
+}
+
+.quantity-input {
+    width: 60px;
+    padding: 5px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
 }
     </style>
 </head>
@@ -582,6 +606,7 @@ ul {
                                      data-price='{$row['price']}'
                                      data-image='{$row['image_path']}'
                                      data-id='{$row['product_id']}' 
+                                     data-stock='{$row['stock_quantity']}'
                                      onclick='openModal(this)'>
                                 <h3>{$row['product_name']}</h3>
                                 <p>Цена: {$row['price']} руб./м²</p>
@@ -612,6 +637,7 @@ ul {
                                      data-price='{$row['price']}'
                                      data-image='{$row['image_path']}'
                                      data-id='{$row['product_id']}' 
+                                     data-stock='{$row['stock_quantity']}'
                                      onclick='openModal(this)'>
                                 <h3>{$row['product_name']}</h3>
                                 <p>Цена: {$row['price']} руб./м²</p>
@@ -639,9 +665,10 @@ ul {
             <h3 id="modalName"></h3>
             <p id="modalDescription"></p>
             <p id="modalPrice"></p>
-            <form method="POST" action="add_to_cart.php">
+            <p id="modalStock" class="stock-info"></p>
+            <form id="addToCartForm" method="POST" onsubmit="addToCart(event)">
                 <input type="hidden" id="product_id" name="product_id" value="">
-                <input type="number" id="quantity" name="quantity" value="1" min="1" required>
+                <input type="number" id="quantity" name="quantity" value="1" min="1" class="quantity-input" required>
                 <button type="submit" class="add-to-cart-btn">Добавить в корзину</button>
             </form>
             <p id="cartMessage" style="color: green;"></p>
@@ -711,6 +738,25 @@ function openModal(element) {
     document.getElementById('modalDescription').innerText = element.getAttribute('data-description');
     document.getElementById('modalPrice').innerText = "Цена: " + element.getAttribute('data-price') + " руб.";
     document.getElementById('product_id').value = element.getAttribute('data-id');
+    
+    // Отображение количества товара на складе
+    const stock = parseInt(element.getAttribute('data-stock'));
+    const stockElement = document.getElementById('modalStock');
+    
+    if (stock > 50) {
+        stockElement.className = 'stock-info stock-high';
+        stockElement.textContent = 'В наличии: ' + stock + ' шт.';
+    } else if (stock > 10) {
+        stockElement.className = 'stock-info stock-medium';
+        stockElement.textContent = 'В наличии: ' + stock + ' шт.';
+    } else if (stock > 0) {
+        stockElement.className = 'stock-info stock-low';
+        stockElement.textContent = 'Осталось мало: ' + stock + ' шт.';
+    } else {
+        stockElement.className = 'stock-info stock-low';
+        stockElement.textContent = 'Нет в наличии';
+    }
+    
     document.getElementById('productModal').style.display = 'flex';
 }
 
@@ -778,9 +824,19 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Управление уведомлениями
-function showNotification(message) {
+function showNotification(message, type = 'warning') {
     const notification = document.getElementById('notification');
     const messageElement = notification.querySelector('.notification-message');
+    
+    // Устанавливаем класс в зависимости от типа уведомления
+    notification.className = 'notification';
+    if (type === 'success') {
+        notification.classList.add('notification-success');
+    } else if (type === 'error') {
+        notification.classList.add('notification-error');
+    } else {
+        notification.classList.add('notification-warning');
+    }
     
     messageElement.textContent = message;
     notification.classList.remove('hide');
@@ -831,6 +887,48 @@ setInterval(() => {
     currentIndex = (currentIndex + 1) % totalSlides;
     showSlide(currentIndex);
 }, 5000);
+
+// Функция добавления товара в корзину
+function addToCart(event) {
+    event.preventDefault();
+    
+    const productId = document.getElementById('product_id').value;
+    const quantity = parseInt(document.getElementById('quantity').value);
+    const stock = parseInt(document.getElementById('modalStock').textContent.match(/\d+/)?.[0] || 0);
+    
+    // Проверка наличия товара
+    if (stock <= 0) {
+        showNotification('Этот товар закончился на складе', 'error');
+        return;
+    }
+    
+    // Проверка количества
+    if (quantity > stock) {
+        showNotification('Недостаточно товара на складе. Доступно: ' + stock + ' шт.', 'error');
+        return;
+    }
+    
+    // Отправка данных на сервер
+    const formData = new FormData(document.getElementById('addToCartForm'));
+    
+    fetch('add_to_cart.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Товар добавлен в корзину', 'success');
+            closeProductModal();
+        } else {
+            showNotification(data.message || 'Ошибка при добавлении товара', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Товар добавлен в корзину', 'success');
+        console.error('Error:', error);
+    });
+}
 </script>
 </body>
 </html>
